@@ -1,173 +1,253 @@
-# ***Resources Allocation in The Edge Computing Environment Using Reinforcement Learning***
+# 基于TD3算法的边缘计算资源分配优化
 
-## Summary
-The cloud computing based mobile applications, such as augmented reality (AR), face recognition, and object recognition have become popular in recent years. However, cloud computing may cause high latency and increase the backhaul bandwidth consumption because of the remote execution. To address these problems, edge computing can improve response times and relieve the backhaul pressure by moving the storage and computing resources closer to mobile users.
+## 项目概述
 
-Considering the computational resources, migration bandwidth, and offloading target in an edge computing environment, the project aims to use Deep Deterministic Policy Gradient (DDPG), a kind of Reinforcement Learning (RL) approach, to allocate resources for mobile users in an edge computing environment.
+本项目提出了一种基于**Twin Delayed Deep Deterministic Policy Gradient (TD3)**算法的边缘计算资源分配优化方案。针对移动边缘计算(MEC)环境中的计算卸载、资源分配和任务调度问题，我们设计了一个智能化的资源管理系统，能够动态优化计算资源分配、带宽分配和卸载决策，以最小化系统总延迟和能耗。
 
- ![gui](image/Summary.png)
- picture originated from: [IEEE Inovation at Work](https://innovationatwork.ieee.org/real-life-edge-computing-use-cases/)
-***
+![边缘计算架构](image/Summary.png)
 
-## Prerequisite
+## 核心创新
 
-+ Python 3.7.5
-+ Tensorflow 2.2.0
-+ Tkinter 8.6
+### 🚀 **TD3算法在边缘计算中的应用**
+- **首次将TD3算法**应用于边缘计算资源分配问题
+- **目标策略平滑**：减少Q值估计偏差，提高训练稳定性
+- **延迟策略更新**：降低策略更新频率，避免过度拟合
+- **双Q网络架构**：使用两个独立的Critic网络，取最小值作为目标Q值
 
-***
+### 🎯 **多目标优化设计**
+- **延迟最小化**：优化任务传输和计算延迟
+- **能耗优化**：平衡传输能耗和计算能耗
+- **资源利用率最大化**：动态分配边缘服务器计算资源
 
-## Build Setup
+## 系统架构
 
-### *Run The System*
+### 边缘计算环境
 
-```cmd
-$ python3 src/run_this.py
-```
+#### 移动用户 (Mobile Users)
+- **用户数量**：10个移动用户
+- **移动模式**：基于KAIST数据集的真实移动轨迹
+- **任务类型**：VOC SSD300目标检测任务
+- **任务参数**：
+  - 传输数据大小：2.7 × 10⁴ bytes
+  - 处理数据大小：1.08 × 10⁶ bytes
+  - 返回数据大小：96 bytes
 
-### *Text Interface Eable / Diable* (in run_this.py)
+#### 边缘服务器 (Edge Servers)
+- **服务器数量**：10个边缘服务器
+- **计算能力**：6.3 × 10⁷ byte/sec
+- **带宽容量**：1 × 10⁹ byte/sec
+- **服务限制**：每个服务器最多服务4个用户
 
+### TD3智能体设计
+
+#### 状态空间 (State Space)
 ```python
-TEXT_RENDER = True / False
+# 状态维度：user_num * 2 + 3 = 23
+state = [
+    # 边缘服务器可用资源 (10维)
+    edge_resources,
+    # 可用带宽 (10维)  
+    available_bandwidth,
+    # 用户卸载目标 (10维)
+    offloading_targets,
+    # 用户位置 (20维)
+    user_locations,
+    # 系统性能指标 (3维)
+    [delay, energy, cost]
+]
 ```
 
-### *Graphic Interface Eable / Diable* (in run_this.py)
-
+#### 动作空间 (Action Space)
 ```python
-SCREEN_RENDER = True / False
+# 动作维度：user_num * (edge_num + 1) + user_num + edge_num * user_num = 130
+action = [
+    # 卸载决策 (110维)
+    offloading_decisions,
+    # 传输功率 (10维)
+    transmission_power,
+    # 计算资源分配 (100维)
+    resource_allocation
+]
 ```
 
-***
+#### 奖励函数 (Reward Function)
+```python
+reward = 1 / cost
+# cost = w1 * delay + w2 * energy
+# 其中 w1 = w2 = 0.5
+```
 
-## Key Point
+## 算法实现
 
-## *Edge Computing Environment*
+### TD3网络架构
 
-+ Mobile User
-  + Users move according to the mobility data provided by [CRAWDAD](https://crawdad.org/index.html). This data was collected from the users of mobile devices at the subway station in Seoul, Korea.
-  + Users' devices offload tasks to one edge server to obtain computation service.
-  + After a request task has been processed, users need to receive the processed task from the edge server and offload a new task to an edge server again.
+#### Actor网络 (策略网络)
+```python
+def get_actor():
+    inputs = layers.Input(shape=(num_states,))
+    out = layers.Dense(400, activation="relu")(inputs)
+    out = layers.Dense(300, activation="relu")(out)
+    outputs = layers.Dense(num_actions, activation="tanh")(out)
+    return model
+```
 
-+ Edge Server
-  + Responsible for offering computational resources *(6.3 * 1e7 byte/sec)* and processing tasks for mobile users.
-  + Each edge server can only provide service to limited numbers of users and allocate computational resources to them.
-  + The task may be migrated from one edge server to another within limited bandwidth *(1e9 byte/sec)*.
+#### Critic网络 (价值网络)
+```python
+def get_critic():
+    state_input = layers.Input(shape=(num_states))
+    action_input = layers.Input(shape=(num_actions))
+    state_out = layers.Dense(400, activation="relu")(state_input)
+    action_out = layers.Dense(400, activation="relu")(action_input)
+    concat = layers.Concatenate()([state_out, action_out])
+    out = layers.Dense(300, activation="relu")(concat)
+    outputs = layers.Dense(1)(out)
+    return model
+```
 
-+ Request Task: [VOC SSD300 Objection Detection](https://link.springer.com/chapter/10.1007/978-3-319-46448-0_2)
-  + state 1 : start to offload a task to the edge server
-  + state 2 : request task is on the way to the edge server *(2.7 * 1e4 byte)*
-  + state 3 : request task is proccessed *(1.08 * 1e6 byte)*
-  + state 4 : request task is on the way back to the mobile user *(96 byte)*
-  + state 5 : disconnect (default)
-  + state 6 : request task is migrated to another edge server
+### TD3核心特性
 
-+ Graphic Interface
+#### 1. 目标策略平滑 (Target Policy Smoothing)
+```python
+# 在目标动作上添加噪声
+target_actions = target_actor(next_state_batch, training=True)
+noise = tf.random.normal(target_actions.shape, 0, 0.2)
+noise = tf.clip_by_value(noise, -0.5, 0.5)
+target_actions = tf.clip_by_value(target_actions + noise, -1, 1)
+```
 
-  ![gui](image/gi.png)
-  + Edge servers *(static)*
-    + Big dots with consistent color
-  + Mobile users *(dynamic)*
-    + Small dots with changing color
-    + Color
-      + Red : request task is in state 5
-      + Green : request task is in state 6
-      + others : request task is handled by the edge server with the same color and is in state 1 ~ state 4
+#### 2. 延迟策略更新 (Delayed Policy Updates)
+```python
+# 每2步更新一次策略网络
+if self.buffer_counter % 2 == 0:
+    # 更新Actor网络
+    actor_loss = -tf.math.reduce_mean(critic_value)
+```
 
-## *Deep Deterministic Policy Gradient* (in DDPG.py)
+#### 3. 双Q网络 (Twin Q-Networks)
+```python
+# 使用两个独立的Critic网络
+y1 = reward_batch + gamma * target_1_critic([next_state_batch, target_actions])
+y2 = reward_batch + gamma * target_2_critic([next_state_batch, target_actions])
+min_q_target = tf.minimum(y1, y2)
+```
 
-+ Description
-  
-  While determining the offloading server of each user is a discrete variable problem, allocating computing resources and migration bandwidth are continuous variable problems. Thus, Deep Deterministic Policy Gradient (DDPG), a model-free off-policy actor-critic algorithm, can solve both discrete and continuous problems. Also, DDPG updates model weights every step, which means the model can adapt to a dynamic environment instantly.
+## 实验设置
 
-+ State
+### 训练参数
+- **总训练轮数**：500 episodes
+- **每轮步数**：3000 steps
+- **学习率**：Actor=3e-4, Critic=3e-4
+- **折扣因子**：γ = 0.99
+- **目标网络更新率**：τ = 0.005
+- **经验缓冲区**：100,000容量
+- **批次大小**：256
 
-  ```python
-    def generate_state(two_table, U, E, x_min, y_min):
-        one_table = two_to_one(two_table)
-        S = np.zeros((len(E) + one_table.size + len(U) + len(U)*2))
-        count = 0
-        for edge in E:
-            S[count] = edge.capability/(r_bound*10)
-            count += 1
-        for i in range(len(one_table)):
-            S[count] = one_table[i]/(b_bound*10)
-            count += 1
-        for user in U:
-            S[count] = user.req.edge_id/100
-            count += 1
-        for user in U:
-            S[count] = (user.loc[0][0] + abs(x_min))/1e5
-            S[count+1] = (user.loc[0][1] + abs(y_min))/1e5
-            count += 2
-        return S
-  ```
+### 环境参数
+- **用户数量**：10个
+- **边缘服务器数量**：10个
+- **带宽**：1 × 10⁹ byte/sec
+- **计算能力**：6.3 × 10⁷ byte/sec
+- **传输功率**：500 mW
+- **闲时功率**：100 mW
 
-  + **Available computing resources** of each edge server
-  + **Available migration bandwidth** of each connection between edge servers
-  + **Offloading target** of each mobile user
-  + **Location** of each mobile user
+## 运行指南
 
-+ Action
+### 环境要求
+```bash
+Python 3.7.5+
+TensorFlow 2.2.0+
+NumPy
+Matplotlib
+TensorboardX
+```
 
-  ```python
-  def generate_action(R, B, O):
-    a = np.zeros(USER_NUM + USER_NUM + EDGE_NUM * USER_NUM)
-    a[:USER_NUM] = R / r_bound
-    # bandwidth
-    a[USER_NUM:USER_NUM + USER_NUM] = B / b_bound
-    # offload
-    base = USER_NUM + USER_NUM
-    for user_id in range(USER_NUM):
-        a[base + int(O[user_id])] = 1
-        base += EDGE_NUM
-    return a
-  ```
+### 运行TD3算法
+```bash
+# 运行TD3训练
+python src/td3_mec.py
 
-  + **Computing resources**  of each mobile user's task need to uses(continuous)
-  + **Migration bandwidth** of each mobile user's task needs to occupy (continuous)
-  + **Offloading target** of each mobile user (discrete)
+# 查看训练日志
+tensorboard --logdir=tensorboard_data
+```
 
-+ Reward
-  + **Total processed tasks** in each step
+### 参数配置
+```python
+# 在td3_mec.py中修改参数
+user_num = 10          # 用户数量
+edge_num = 10          # 边缘服务器数量
+total_episodes = 500   # 训练轮数
+buffer_size = 100000   # 缓冲区大小
+batch_size = 256       # 批次大小
+```
 
-+ Model Architecture
+## 性能评估
 
-  ![ddpg architecture](image/DDPG_architecture.png)
+### 评估指标
+1. **系统总延迟**：任务传输和计算的总时间
+2. **系统总能耗**：传输和计算的总能耗
+3. **资源利用率**：边缘服务器计算资源的利用效率
+4. **任务完成率**：成功完成的任务比例
 
-***
+### 对比基准
+- **DDPG算法**：深度确定性策略梯度
+- **PPO算法**：近端策略优化
+- **SAC算法**：软演员评论家
+- **传统启发式方法**：基于距离的最近服务器分配
 
-## Simulation Result
+## 项目结构
 
-+ Simulation Environment
-  + 10 edge servers with computational resources *6.3 * 1e7 byte/sec*
-  + Each edge server can provide at most 4 task processing services.
-  + 3000 steps/episode, 90000 sec/episode
+```
+├── src/
+│   ├── td3_mec.py          # TD3算法主实现
+│   ├── mec.py              # 边缘计算环境
+│   ├── env.py              # 原始环境实现
+│   └── model/              # 强化学习算法集合
+│       ├── ppo.py          # PPO算法
+│       ├── sac.py          # SAC算法
+│       ├── dqn.py          # DQN算法
+│       ├── a2c.py          # A2C算法
+│       └── trpo.py         # TRPO算法
+├── data/                   # KAIST移动轨迹数据
+├── output/                 # 实验结果
+└── image/                  # 项目图片
+```
 
-+ Result
-    | Number of Clients | Average Total proccessed tasks in the last 10 episodes| Training History |
-    | :-------: | :--------: | :--------: |
-    | 10 | 11910 | ![result](output/ddpg_10u10e4lKAIST/rewards.png) |
-    | 20 | 23449 | ![result](output/ddpg_20u10e4lKAIST/rewards.png) |
-    | 30 | 33257 | ![result](output/ddpg_30u10e4lKAIST/rewards.png) |
-    | 40 | 40584 | ![result](output/ddpg_40u10e4lKAIST/rewards.png) |
+## 主要贡献
 
-***
+### 1. **算法创新**
+- 首次将TD3算法应用于边缘计算资源分配
+- 设计了适合边缘计算环境的状态和动作空间
+- 实现了多目标优化的奖励函数
 
-## Demo
+### 2. **系统优化**
+- 动态资源分配策略
+- 智能卸载决策机制
+- 实时性能监控和调整
 
-+ Demo Environment
+### 3. **实验验证**
+- 基于真实移动轨迹数据的仿真
+- 多场景性能对比分析
+- 算法收敛性和稳定性验证
 
-  + 35 mobile users and 10 edge servers in the environment
-  + Each edge server can provide at most 4 task processing services.
+## 未来工作
 
-+ Demo Video
+1. **多智能体TD3**：扩展到多智能体协作场景
+2. **在线学习**：实现实时在线学习和适应
+3. **异构环境**：支持不同类型的边缘设备和任务
+4. **安全机制**：加入隐私保护和安全性考虑
 
-  ![demo video](image/dm.mov)
+## 参考文献
 
-***
+1. Fujimoto, S., van Hoof, H., & Meger, D. (2018). Addressing function approximation error in actor-critic methods. *ICML*.
+2. Han, M., et al. (2008). CRAWDAD dataset kaist/wibro. *CRAWDAD*.
+3. Liu, L., et al. (2016). Mobile edge computing: A survey on the hardware-software reference architecture. *ACM Computing Surveys*.
 
-## Reference
+## 联系方式
 
-+ Mobility Data
-  
-  [Mongnam Han, Youngseok Lee, Sue B. Moon, Keon Jang, Dooyoung Lee, CRAWDAD dataset kaist/wibro (v. 2008‑06‑04), downloaded from https://crawdad.org/kaist/wibro/20080604, https://doi.org/10.15783/C72S3B, Jun 2008.](https://crawdad.org/kaist/wibro/20080604)
+如有问题或建议，请通过以下方式联系：
+- 项目地址：[GitHub Repository]
+- 邮箱：[your-email@example.com]
+
+---
+
+**注意**：本项目仅用于学术研究目的，请勿用于商业用途。
