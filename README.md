@@ -21,18 +21,8 @@ Experiments on real-world mobility traces demonstrate that in high-density user 
 ![边缘计算架构](image/Summary.png)
 
 
-## 运行指南
-
-### 环境要求
-```bash
-Python 3.7.5+
-TensorFlow 2.2.0+
-NumPy
-Matplotlib
-TensorboardX
 
 
-## 项目结构
 
 ```
 ├── src/
@@ -50,6 +40,3 @@ TensorboardX
 └── image/                  # 项目图片
 ```
 
-
-
-**注意**：本项目仅用于学术研究目的，请勿用于商业用途。
