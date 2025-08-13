@@ -1,8 +1,22 @@
-# 基于TD3算法的边缘计算资源分配优化
+# E2EHCO Framework: A Dynamic Edge Computing Task Offloading Solution
 
-## 项目概述
+## Project Background
+Mobile Edge Computing (MEC) deploys computational resources at the network edge, enabling task offloading for compute-intensive applications. However, in dynamic multi-user, multi-server environments, user mobility leads to time-varying channel conditions, and the spatiotemporal heterogeneity of server loads further complicates system behavior. The system must jointly optimize discrete offloading decisions and continuous resource-allocation parameters, forming a hybrid action space. Its integrated decision-making mechanism is key to breaking the long-standing trade-off between latency and energy consumption.
 
-本项目提出了一种基于**Twin Delayed Deep Deterministic Policy Gradient (TD3)**算法的边缘计算资源分配优化方案。针对移动边缘计算(MEC)环境中的计算卸载、资源分配和任务调度问题，我们设计了一个智能化的资源管理系统，能够动态优化计算资源分配、带宽分配和卸载决策，以最小化系统总延迟和能耗。
+## Technical Challenges
+Traditional deep reinforcement learning (DRL) approaches relying on a single policy network often suffer from strong strategy coupling and Q-value estimation bias. This results in policy oscillations and the curse of dimensionality in highly dynamic scenarios, hindering stable convergence.
+
+## Solution
+This project proposes an End-to-End Hybrid Computation Offloading (E2EHCO) framework based on an enhanced Twin Delayed Deep Deterministic Policy Gradient (TD3) algorithm:
+- Employs dual critic networks with a delayed-update mechanism to effectively suppress Q-value overestimation
+- Integrates Softmax and Tanh activations in the actor network to handle discrete and continuous actions simultaneously
+- Achieves efficient and robust joint decision optimization in dynamically changing conditions
+
+## Performance Advantages
+Experiments on real-world mobility traces demonstrate that in high-density user scenarios:
+- Reduces total latency by at least 20% compared to benchmark methods
+- Lowers energy consumption by approximately 16%
+- Provides an adaptive offloading solution with real-time responsiveness for large-scale, dynamic MEC systems
 
 ![边缘计算架构](image/Summary.png)
 
@@ -16,30 +30,7 @@ TensorFlow 2.2.0+
 NumPy
 Matplotlib
 TensorboardX
-```
 
-### 运行TD3算法
-```bash
-# 运行TD3训练
-python src/td3_mec.py
-
-# 查看训练日志
-tensorboard --logdir=tensorboard_data
-```
-
-## 性能评估
-
-### 评估指标
-1. **系统总延迟**：任务传输和计算的总时间
-2. **系统总能耗**：传输和计算的总能耗
-3. **资源利用率**：边缘服务器计算资源的利用效率
-4. **任务完成率**：成功完成的任务比例
-
-### 对比基准
-- **DDPG算法**：深度确定性策略梯度
-- **PPO算法**：近端策略优化
-- **SAC算法**：软演员评论家
-- **传统启发式方法**：基于距离的最近服务器分配
 
 ## 项目结构
 
